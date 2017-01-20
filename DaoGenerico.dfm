@@ -76,19 +76,4 @@ object Form1: TForm1
     TabOrder = 6
     OnClick = Button7Click
   end
-  object FDQuery1: TFDQuery
-    FetchOptions.AssignedValues = [evRecordCountMode, evUnidirectional]
-    FetchOptions.Unidirectional = True
-    FetchOptions.RecordCountMode = cmTotal
-    Left = 216
-    Top = 88
-  end
-  object FDPhysPgDriverLink1: TFDPhysPgDriverLink
-    Left = 336
-    Top = 96
-  end
-  object FDConnection1: TFDConnection
-    Left = 72
-    Top = 88
-  end
 end

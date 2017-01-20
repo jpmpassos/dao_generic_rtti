@@ -14,9 +14,9 @@ type
     Fserver: String;
     Fdatabase: String;
     Fport: String;
+    Fcharset: string;
 
     class var finstancia: TSystemConfig;
-
 
     procedure carregarConfiguracao;
     constructor CreatePrivate;
@@ -28,6 +28,7 @@ type
     property server: String read Fserver write Fserver;
     property database: String read Fdatabase write Fdatabase;
     property port: String read Fport write Fport;
+    property charset: string read Fcharset write Fcharset;
 
     class function GetInstancia(): TSystemConfig;
     constructor Create;
