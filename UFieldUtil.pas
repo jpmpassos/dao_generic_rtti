@@ -26,12 +26,14 @@ type
     Ftipo: TTipo;
     Fclasstring: string;
     Fnomecampo: string;
+    Fcjson: TClass;
 
   public
     property indexfield: Integer read Findexfield write Findexfield;
     property indexprop: Integer read Findexprop write Findexprop;
     property tipo: TTipo read Ftipo write Ftipo;
     property classtring: string read Fclasstring write Fclasstring;
+    property cjson: TClass read Fcjson write Fcjson;
     property nomecampo: string read Fnomecampo write Fnomecampo;
   end;
 
@@ -55,8 +57,7 @@ type
   public
     function getMap(query: TFDQuery; TypObj: TRttiType; Instance: Pointer)
       : TList<TMapFieldProp>;
-    function getMapObj(TypObj: TRttiType)
-      : TList<TMapFieldProp>;
+    function getMapObj(TypObj: TRttiType): TList<TMapFieldProp>;
     function getObjetoJson(jsonstr: string; TypObj: TRttiType;
       Instance: Pointer): TObject;
 
@@ -118,6 +119,8 @@ var
   Atributo: TCustomAttribute;
   index, i: Integer;
   map: TMapFieldProp;
+  instancia: TRttiInstanceType;
+  Context: TRttiContext;
 begin
   Result := TList<TMapFieldProp>.Create;
 
@@ -139,7 +142,13 @@ begin
           map.indexprop := i;
           map.tipo := CampoAttribute(Atributo).tipo;
           if map.tipo = tpJsonb then
-            map.classtring := CampoAttribute(Atributo).classobj;;
+          begin
+            map.classtring := CampoAttribute(Atributo).classobj;
+            instancia := (Context.FindType(CampoAttribute(Atributo).classobj)
+              as TRttiInstanceType);
+            map.cjson := instancia.MetaclassType;
+          end;
+
           // getTipoCampo(Prop, Atributo, Instance);
           // Result.Add(map);
           Break;
@@ -615,6 +624,8 @@ var
   Atributo: TCustomAttribute;
   index, i: Integer;
   map: TMapFieldProp;
+  instancia: TRttiInstanceType;
+  Context: TRttiContext;
 begin
   Result := TList<TMapFieldProp>.Create;
 
@@ -636,7 +647,13 @@ begin
           map.indexprop := i;
           map.tipo := CampoAttribute(Atributo).tipo;
           if map.tipo = tpJsonb then
-            map.classtring := CampoAttribute(Atributo).classobj;;
+          begin
+            map.classtring := CampoAttribute(Atributo).classobj;
+            instancia := (Context.FindType(CampoAttribute(Atributo).classobj)
+              as TRttiInstanceType);
+            map.cjson := instancia.MetaclassType;
+          end;
+
           // getTipoCampo(Prop, Atributo, Instance);
           Result.Add(map);
           Break;
@@ -652,8 +669,7 @@ begin
     FreeAndNil(Result);
 end;
 
-function TFieldUtil.getMapObj(TypObj: TRttiType)
-  : TList<TMapFieldProp>;
+function TFieldUtil.getMapObj(TypObj: TRttiType): TList<TMapFieldProp>;
 var
   Contexto: TRttiContext;
   Prop: TRttiProperty;
@@ -661,6 +677,8 @@ var
   Atributo: TCustomAttribute;
   index, i: Integer;
   map: TMapFieldProp;
+  instancia: TRttiInstanceType;
+  Context: TRttiContext;
 begin
   Result := TList<TMapFieldProp>.Create;
 

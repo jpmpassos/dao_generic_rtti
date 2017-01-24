@@ -13,7 +13,7 @@ type
   public
     [CampoAttribute('numero', tpInteger)]
     property numero: Integer read Fnumero write Fnumero;
-    [CampoAttribute('enredeco', tpString)]
+    [CampoAttribute('endereco', tpString)]
     property Endereco: string read Fendereco write Fendereco;
   end;
 

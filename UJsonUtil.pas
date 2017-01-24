@@ -40,7 +40,7 @@ type
     function carregarObjeto(var json: string): TOBJson;
     function carregarCamposObjeto(var json: string): TJsonString;
   published
-    function JsonToObject(json: string; strClass: string): TObject;
+    function JsonToObject(json: string; Tcjson: TClass): TObject;
   end;
 
 implementation
@@ -143,7 +143,7 @@ begin
 
 end;
 
-function TJsonUtil.JsonToObject(json: string; strClass: string): TObject;
+function TJsonUtil.JsonToObject(json: string;Tcjson: TClass): TObject;
 var
   terminar: Boolean;
   Method: TRttiMethod;
@@ -155,56 +155,71 @@ var
   Prop: TRttiProperty;
   j, i: Integer;
   strTemp: string;
-  Tcjson: TClass;
   Atributo: TCustomAttribute;
   objson: TOBJson;
   camposjson: TList<TJsonString>;
   ResultAsPointer: Pointer;
   Maps: TList<TMapFieldProp>;
   fieldUtil: TFieldUtil;
+  Map: TMapFieldProp;
 begin
-  camposjson := carregarObjeto(json).campos;
+  objson := carregarObjeto(json);
   // instancia := (C.FindType(Str_Class.AsString) as TRttiInstanceType);
 
-  instancia := (Context.FindType(strClass) as TRttiInstanceType);
-  Tcjson := instancia.MetaclassType;
+
   Result := Tcjson.Create;
   TypObj := Context.GetType(Tcjson);
   Maps := fieldUtil.getMapObj(TypObj);
   Move(Result, ResultAsPointer, SizeOf(Pointer));
 
-
-
-
-  for Prop in TypObj.GetProperties do
+  while objson.campos.Count > i do
   begin
-
-    for Atributo in Prop.GetAttributes do
+    j := 0;
+    while Maps.Count > j do
     begin
-      if Atributo is CampoAttribute then
+      Map := Maps[j];
+      if Map.nomecampo = objson.campos[i].campo then
       begin
-
-        i := 0;
-        terminar := false;
-        while not terminar do
-        begin
-          if camposjson.Count = i then
-            terminar := true
-          else
+        try
+          Prop := TypObj.GetProperties[Map.indexprop];
+          if Map.tipo = tpString then
           begin
-            if camposjson[i].campo.ToUpper = CampoAttribute(Atributo).nome.ToUpper
-            then
-            begin
-
-              terminar := true;
-            end;
+            Prop.SetValue(ResultAsPointer, TValue.From(objson.campos[i].valor));
+          end
+          else if Map.tipo = tpBoleano then
+          begin
+            Prop.SetValue(ResultAsPointer,
+              TValue.From(StrToBool(objson.campos[i].valor)));
+          end
+          else if Map.tipo = tpFloat then
+          begin
+            Prop.SetValue(ResultAsPointer,
+              TValue.From(objson.campos[i].valor.ToDouble()));
+          end
+          else if Map.tipo = tpInteger then
+          begin
+            Prop.SetValue(ResultAsPointer,
+              TValue.From(objson.campos[i].valor.ToInteger()));
+          end
+          else if Map.tipo = tpData then
+          begin
+            Prop.SetValue(ResultAsPointer,
+              TValue.From(StrToDate(objson.campos[i].valor)));
           end;
-          Inc(i);
+        except
+          on E: Exception do
+            raise Exception.Create('Erro preencher ' + Prop.Name + '. ERROR:' +
+              E.Message);
         end;
-      end;
-    end;
-  end;
 
+        Maps.Remove(Map);
+        j := Maps.Count;
+      end;
+      Inc(j);
+    end;
+
+    Inc(i);
+  end;
 end;
 
 function TJsonUtil.ExtractStringsModificada(Separators, WhiteSpace: TSysCharSet;

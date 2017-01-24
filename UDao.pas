@@ -386,9 +386,8 @@ var
   objetojson: TObject;
   Json: TJSONValue;
   Endereco: TEndereco;
-  jsonutil : TJsonUtil;
+  jsonutil: TJsonUtil;
 begin
-
   try
     Query := TDBConnection.GetInstance.Query;
 
@@ -477,15 +476,8 @@ begin
             end
             else if Map.tipo = tpJsonb then
             begin
-              jsonutil := TJsonUtil.Create;
-              jsonutil.JsonToObject(Query.Fields[Map.indexfield].AsString,Map.classtring);
-
-              Endereco := objetojson as TEndereco;
-              try
-                // Prop.SetValue(ResultAsPointer, to );
-              finally
-                unm.Free;
-              end;
+              Prop.SetValue(ResultAsPointer, jsonutil.JsonToObject
+                (Query.Fields[Map.indexfield].AsString, Map.cjson));
             end;
           except
             on E: Exception do
