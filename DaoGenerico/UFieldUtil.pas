@@ -4,7 +4,8 @@ interface
 
 Uses
   FireDAC.Comp.Client, UConexoes, Rtti, UAttributes,
-  Generics.Collections, FireDAC.dapt, Data.DB, USystemConfig;
+  Generics.Collections, FireDAC.dapt, Data.DB, USystemConfig,
+  System.JSON, REST.JSON;
 
 type
   TScriptInsert = class
@@ -534,6 +535,8 @@ end;
 
 procedure TFieldUtil.GetCamposValores(var strValues: string; tipo: TTipo;
   Prop: TRttiProperty; Atributo: TCustomAttribute; Obj: TObject);
+var
+  str: string;
 begin
   case tipo of
     tpString:
@@ -571,6 +574,14 @@ begin
       begin
         strValues := strValues + BoolToStr(Prop.GetValue(TObject(Obj))
           .AsVariant) + ',';;
+      end;
+
+    tpJsonb:
+      begin
+        str := QuotedStr(TJson.ObjectToJsonString(Prop.GetValue(TObject(Obj))
+          .AsObject));
+
+        strValues := strValues + str + ',';;
       end;
   end;
 
@@ -611,6 +622,12 @@ begin
     tpBoleano:
       begin
         Exit(BoolToStr(Prop.GetValue(TObject(Obj)).AsVariant));
+      end;
+
+    tpJsonb:
+      begin
+        Exit(QuotedStr(TJson.ObjectToJsonString(Prop.GetValue(TObject(Obj))
+          .AsObject)));
       end;
   end;
 end;

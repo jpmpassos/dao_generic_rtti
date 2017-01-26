@@ -6,6 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   Vcl.Graphics, REST.Json,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, System.Classes;
+
 type
   TForm1 = class(TForm)
     Button1: TButton;
@@ -36,7 +37,7 @@ implementation
 {$R *.dfm}
 
 uses UObjectClone, UDao, UContato, UCupom, UProduto, Generics.Collections,
-  UDBConnection, UCliente, System.Json;
+  UDBConnection, UCliente, System.Json, Endereco;
 
 procedure TForm1.Button1Click(Sender: TObject);
 var
@@ -59,15 +60,15 @@ var
   listaContato: TList<TContato>;
   listaProduto: TList<TProduto>;
   listaCupom: TList<TCupom>;
-  listaCliente : TList<TCliente>;
+  listaCliente: TList<TCliente>;
   datai, dataf: TTime;
 begin
   datai := Now;
   dao := TDAO.Create;
   TDBConnection.iniciarTransacao;
   listaCliente := dao.Query<TCliente>('select * from cliente');
-  //listaProduto := dao.Query<TProduto>('select * from produtos');
-  //listaCupom := dao.Query<TCupom>('select * from cupons');
+  // listaProduto := dao.Query<TProduto>('select * from produtos');
+  // listaCupom := dao.Query<TCupom>('select * from cupons');
   TDBConnection.fecharTransacao;
   dataf := Now;
   ShowMessage(TimeToStr(datai - datai));
@@ -77,16 +78,36 @@ procedure TForm1.Button3Click(Sender: TObject);
 var
   dao: TDAO;
   contato: TContato;
+  cliente: TCliente;
 begin
-  contato := TContato.Create;
-  contato.nome := 'Teste 1';
-  contato.email := 'teste1@teste.com.br';
-  contato.telefone := '33988823270';
-   dao.Insert<TContato>(contato);
-  ShowMessage(contato.ObjectToJSON<TContato>(contato).ToJSON);
-  ShowMessage(TJson.ObjectToJsonString(contato));
-  contato := TJson.JsonToObject<TContato>('{"email":"teste1@teste.com.br","contatoid":0,"nome":"Volta","telefone":"33988823270"}');
-  ShowMessage(contato.nome);
+  cliente := TCliente.Create;
+  cliente.clienteid := 13;
+  cliente.nome := 'nome 13';
+  cliente.descricao := 'nome 13 teste';
+  cliente.cpfcnpj := '08565412521';
+  cliente.rgie := 'mg15456789';
+  cliente.codigointerno := 1;
+  cliente.status := 'Ativo';
+  cliente.Endereco := TEndereco.Create;
+
+  cliente.Endereco.numero := 13;
+  cliente.Endereco.Endereco := 'Teste nome 13';
+
+  dao := TDAO.Create;
+  dao.Update<TCliente>(cliente);
+  //dao.Insert<TCliente>(cliente);
+
+  {
+    contato := TContato.Create;
+    contato.nome := 'Teste 1';
+    contato.email := 'teste1@teste.com.br';
+    contato.telefone := '33988823270';
+    dao.Insert<TContato>(contato);
+    ShowMessage(contato.ObjectToJSON<TContato>(contato).ToJSON);
+    ShowMessage(TJson.ObjectToJsonString(contato)); }
+  // contato := TJson.JsonToObject<TContato>('{"email":"teste1@teste.com.br","contatoid":0,"nome":"Volta","telefone":"33988823270"}');
+
+  // ShowMessage(contato.nome);
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
@@ -112,7 +133,7 @@ begin
   cliente.codigointerno := 1;
   cliente.codigoweb := 1;
   cliente.status := 'Ativo';
-  //cliente.excluido := False;
+  // cliente.excluido := False;
 
   dao := TDAO.Create;
   dao.Update<TContato>(cliente);
@@ -132,7 +153,7 @@ begin
   cliente.codigointerno := 1;
   cliente.codigoweb := 1;
   cliente.status := 'Ativo';
- // cliente.excluido := False;
+  // cliente.excluido := False;
 
   dao := TDAO.Create;
   dao.Insert<TCliente>(cliente);
