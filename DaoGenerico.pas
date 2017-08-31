@@ -198,7 +198,6 @@ begin
   if dao.CommitRelease then
     ShowMessage('Comiit realizado com sucesso!');
 
-
   ShowMessage(TimeToStr(dataf - datai));
 end;
 

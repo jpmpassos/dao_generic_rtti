@@ -22,6 +22,8 @@ type
     function CarregarObjeto<T: Class>(Maps: TList<TMapFieldProp>;
       Map: TMapFieldProp; TypObj: TRttiType): T;
 
+    procedure FreeObject(var Obj);
+
     function GetConection: TConnetion;
   public
     function Insert<T: Class>(Obj: TObject): Integer;
@@ -38,7 +40,7 @@ implementation
 
 Uses
   REST.Json, UDBConnection, USystemConfig, System.Json,
-  Data.DBXJSONReflect, UJsonUtil;
+  Data.DBXJSONReflect, UJsonUtil, UObjFunctions;
 
 { TDAO }
 
@@ -52,20 +54,26 @@ var
   IsId, IsAutoincremente: Boolean;
   Atributo: TCustomAttribute;
 begin
-  Contexto := TRttiContext.create;
-  TypObj := Contexto.GetType(TObject(Obj).ClassInfo);
-  Move(Obj, ResultAsPointer, SizeOf(Pointer));
+  try
+    Contexto := TRttiContext.create;
+    TypObj := Contexto.GetType(TObject(Obj).ClassInfo);
+    Move(Obj, ResultAsPointer, SizeOf(Pointer));
 
-  for Prop in TypObj.GetProperties do
-  begin
-    for Atributo in Prop.GetAttributes do
+    for Prop in TypObj.GetProperties do
     begin
-      if Atributo is IdAttribute then
+      for Atributo in Prop.GetAttributes do
       begin
-        Prop.SetValue(ResultAsPointer, TValue.From(Id));
-        Break;
+        if Atributo is IdAttribute then
+        begin
+          Prop.SetValue(ResultAsPointer, TValue.From(Id));
+          Break;
+        end;
       end;
     end;
+
+  finally
+    FreeObject(Contexto);
+    FreeObject(TypObj);
   end;
 end;
 
@@ -178,34 +186,33 @@ end;
 procedure TDAO.Delete<T>(Obj: TObject);
 var
   fieldUtil: TFieldUtil;
-  Query: TFDQuery;
   script: String;
 begin
   try
     fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptDelete<T>(Obj);
 
-    Query := TDBConnection.GetInstance.Query;
-
-    if TDBConnection.autoCommit then
+    if fautocomite then
     begin
-      Query.Connection.StartTransaction;
+      Session := TConexoesLista.Acquire();
+      Session.StartTransaction;
     end;
-    Query.Close;
-    Query.sql.Clear;
-    Query.sql.Add(script);
-    Query.ExecSQL;
 
-    if TDBConnection.autoCommit then
+    Session.Query.Close;
+    Session.Query.sql.Clear;
+    Session.Query.sql.Add(script);
+    Session.Query.ExecSQL;
+
+    if fautocomite then
     begin
       try
-        Query.Connection.Commit;
+        Session.Query.Connection.Commit;
       except
         on E: Exception do
         begin
           try
-            if Assigned(Query) and Query.Connection.InTransaction then
-              Query.Connection.Rollback;
+            if Session.InTransaction then
+              Session.Rollback;
           finally
             raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
@@ -214,8 +221,17 @@ begin
       end;
     end;
   finally
-    Query := nil;
-    FreeAndNil(fieldUtil);
+    FreeObject(fieldUtil);
+  end;
+end;
+
+procedure TDAO.FreeObject(var Obj);
+begin
+  try
+    FreeAndNil(Obj);
+  except
+    on E: Exception do
+      Pointer(Obj) := nil;
   end;
 end;
 
@@ -287,30 +303,11 @@ begin
       Result := CarregarObjeto<T>(Maps, Map, TypObj);
     end;
   finally
-    try
-      FreeAndNil(Obj);
-    except
-      on E: Exception do
-    end;
-
-    try
-      FreeAndNil(c);
-    except
-      on E: Exception do
-    end;
-
-    try
-      FreeAndNil(TypObj);
-    except
-      on E: Exception do
-    end;
-
-    try
-      FreeAndNil(fieldUtil);
-    except
-      on E: Exception do
-        fieldUtil := nil;
-    end;
+    FreeObject(Obj);
+    FreeObject(c);
+    FreeObject(TypObj);
+    FreeObject(fieldUtil);
+    TObjFunctions<TMapFieldProp>.DestroyList(Maps);
   end;
 end;
 
@@ -375,7 +372,8 @@ begin
     if fautocomite then
       TConexoesLista.Release(Session);
 
-    FreeAndNil(fieldUtil);
+    FreeObject(fieldUtil);
+    FreeObject(script);
   end;
 end;
 
@@ -521,30 +519,11 @@ begin
       end;
     end;
   finally
-    try
-      FreeAndNil(Obj);
-    except
-      on E: Exception do
-    end;
-
-    try
-      FreeAndNil(c);
-    except
-      on E: Exception do
-    end;
-
-    try
-      FreeAndNil(TypObj);
-    except
-      on E: Exception do
-    end;
-
-    try
-      FreeAndNil(fieldUtil);
-    except
-      on E: Exception do
-        fieldUtil := nil;
-    end;
+    FreeObject(Obj);
+    FreeObject(c);
+    FreeObject(TypObj);
+    FreeObject(fieldUtil);
+    TObjFunctions<TMapFieldProp>.DestroyList(Maps);
   end;
 end;
 
@@ -687,34 +666,33 @@ end;
 procedure TDAO.Update<T>(Obj: TObject);
 var
   fieldUtil: TFieldUtil;
-  Query: TFDQuery;
   script: String;
 begin
   try
     fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptUpdate<T>(Obj);
 
-    Query := TDBConnection.GetInstance.Query;
-
-    if TDBConnection.autoCommit then
+    if fautocomite then
     begin
-      Query.Connection.StartTransaction;
+      Session := TConexoesLista.Acquire();
+      Session.StartTransaction;
     end;
-    Query.Close;
-    Query.sql.Clear;
-    Query.sql.Add(script);
-    Query.ExecSQL;
 
-    if TDBConnection.autoCommit then
+    Session.Query.Close;
+    Session.Query.sql.Clear;
+    Session.Query.sql.Add(script);
+    Session.Query.ExecSQL;
+
+    if fautocomite then
     begin
       try
-        Query.Connection.Commit;
+        Session.Query.Connection.Commit;
       except
         on E: Exception do
         begin
           try
-            if Assigned(Query) and Query.Connection.InTransaction then
-              Query.Connection.Rollback;
+            if Session.InTransaction then
+              Session.Rollback;
           finally
             raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
@@ -723,8 +701,7 @@ begin
       end;
     end;
   finally
-    Query := nil;
-    FreeAndNil(fieldUtil);
+    FreeObject(fieldUtil);
   end;
 end;
 

@@ -21,7 +21,8 @@ uses
   UJsonUtil in 'DaoGenerico\UJsonUtil.pas',
   USystemConfig in 'DaoGenerico\USystemConfig.pas',
   UControleConexao in 'UControleConexao.pas',
-  USafeUnit in 'USafeUnit.pas';
+  USafeUnit in 'USafeUnit.pas',
+  UObjFunctions in 'UObjFunctions.pas';
 
 {$R *.res}
 
