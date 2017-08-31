@@ -39,7 +39,7 @@ implementation
 {$R *.dfm}
 
 uses UObjectClone, UDao, UContato, UCupom, UProduto, Generics.Collections,
-  UDBConnection, UCliente, System.Json, Endereco;
+  UCliente, System.Json, Endereco, UContatoDAO;
 
 procedure TForm1.Button1Click(Sender: TObject);
 var
@@ -58,7 +58,7 @@ end;
 
 procedure TForm1.Button2Click(Sender: TObject);
 var
-  dao: TDAO;
+  dao: TContatoDAO;
   listaContato: TList<TContato>;
   listaProduto: TList<TProduto>;
   listaCupom: TList<TCupom>;
@@ -66,9 +66,9 @@ var
   datai, dataf: TTime;
 begin
   datai := Now;
-  dao := TDAO.create(False);
+  dao := TContatoDAO.create(False);
 
-  listaContato := dao.Query<TContato>('select first 3 * from contato');
+  listaContato := dao.CarregarContatos;
 
   dataf := Now;
 
@@ -81,7 +81,7 @@ end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  TThread.Queue(nil,
+ { TThread.Queue(nil,
     procedure
     var
       dao: TDAO;
@@ -116,7 +116,7 @@ begin
       // contato := TJson.JsonToObject<TContato>('{"email":"teste1@teste.com.br","contatoid":0,"nome":"Volta","telefone":"33988823270"}');
 
       // ShowMessage(contato.nome);
-    end);
+//    end);
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
@@ -124,7 +124,7 @@ var
   dao: TDAO;
   listaClinente: TList<TCliente>;
 begin
-  listaClinente := dao.Query<TCliente>('SELECT * from cliente');
+ // listaClinente := dao.Query<TCliente>('SELECT * from cliente');
 
 end;
 
@@ -145,7 +145,7 @@ begin
   // cliente.excluido := False;
 
   dao := TDAO.Create;
-  dao.Update<TContato>(cliente);
+  //dao.Update<TContato>(cliente);
 
 end;
 
@@ -165,7 +165,7 @@ begin
   // cliente.excluido := False;
 
   dao := TDAO.Create;
-  dao.Insert<TCliente>(cliente);
+  //dao.Insert<TCliente>(cliente);
 
 end;
 
@@ -178,7 +178,7 @@ begin
   cliente.clienteid := 1;
 
   dao := TDAO.Create;
-  dao.Delete<TCliente>(cliente);
+  //dao.Delete<TCliente>(cliente);
 
 end;
 
@@ -191,7 +191,7 @@ begin
   datai := Now;
   dao := TDAO.create(False);
 
-  contato := dao.Get<TContato>(5);
+  //contato := dao.Get<TContato>(5);
 
   dataf := Now;
 

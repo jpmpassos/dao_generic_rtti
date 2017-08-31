@@ -16,13 +16,13 @@ uses
   UAttributes in 'DaoGenerico\UAttributes.pas',
   UConnectionUtil in 'DaoGenerico\UConnectionUtil.pas',
   UDao in 'DaoGenerico\UDao.pas',
-  UDBConnection in 'DaoGenerico\UDBConnection.pas',
   UFieldUtil in 'DaoGenerico\UFieldUtil.pas',
   UJsonUtil in 'DaoGenerico\UJsonUtil.pas',
   USystemConfig in 'DaoGenerico\USystemConfig.pas',
-  UControleConexao in 'UControleConexao.pas',
+  UControleConexao in 'DaoGenerico\UControleConexao.pas',
   USafeUnit in 'USafeUnit.pas',
-  UObjFunctions in 'UObjFunctions.pas';
+  UObjFunctions in 'UObjFunctions.pas',
+  UContatoDAO in 'UContatoDAO.pas';
 
 {$R *.res}
 

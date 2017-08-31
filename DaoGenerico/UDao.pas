@@ -12,35 +12,32 @@ type
     fautocomite: Boolean;
     Session: TConnetion;
     function Instanciar<T: Class>: T;
-
     procedure InsertFirebird<T: Class>(Obj: TObject);
     procedure InsertPostgresql<T: Class>(Obj: TObject);
     procedure AtualizarId(Obj: TObject; Id: Integer);
     function QueryFB<T: Class>(sql: string): TList<T>;
     function QueryPG<T: Class>(sql: string): TList<T>;
-
     function CarregarObjeto<T: Class>(Maps: TList<TMapFieldProp>;
       Map: TMapFieldProp; TypObj: TRttiType): T;
-
     procedure FreeObject(var Obj);
-
     function GetConection: TConnetion;
-  public
-    function Insert<T: Class>(Obj: TObject): Integer;
+  protected
     function Query<T: Class>(sql: string): TList<T>;
+    function Insert<T: Class>(Obj: TObject): Integer;
     function Get<T: Class>(codigo: Integer): T;
     procedure Delete<T: Class>(Obj: TObject);
     procedure Update<T: Class>(Obj: TObject);
-
+  public
     function CommitRelease: Boolean;
     constructor create(autoCommit: Boolean = true);
+
   end;
 
 implementation
 
 Uses
-  REST.Json, UDBConnection, USystemConfig, System.Json,
-  Data.DBXJSONReflect, UJsonUtil, UObjFunctions;
+  REST.Json, USystemConfig, System.Json,
+  Data.DBXJSONReflect, UObjFunctions;
 
 { TDAO }
 
@@ -384,7 +381,7 @@ var
   Query: TFDQuery;
   script: TScriptInsert;
 begin
-  try
+  { try
     fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptInsertePG<T>(Obj);
 
@@ -392,7 +389,7 @@ begin
 
     if TDBConnection.autoCommit then
     begin
-      Query.Connection.StartTransaction;
+    Query.Connection.StartTransaction;
     end;
     Query.Close;
     Query.sql.Clear;
@@ -401,38 +398,38 @@ begin
 
     if not script.chaveprimaria.IsEmpty then
     begin
-      Query.Close;
-      Query.sql.Clear;
-      Query.sql.Add(script.scriptpgequencia);
-      Query.Open;
+    Query.Close;
+    Query.sql.Clear;
+    Query.sql.Add(script.scriptpgequencia);
+    Query.Open;
 
-      Id := Query.FieldByName('cod').AsInteger;
+    Id := Query.FieldByName('cod').AsInteger;
     end;
 
     if TDBConnection.autoCommit then
     begin
-      try
-        Query.Connection.Commit;
+    try
+    Query.Connection.Commit;
 
-        if Id > 0 then
-          AtualizarId(Obj, Id);
-      except
-        on E: Exception do
-        begin
-          try
-            if Assigned(Query) and Query.Connection.InTransaction then
-              Query.Connection.Rollback;
-          finally
-            raise Exception.create('Erro ao executar query. Erro: ' +
-              E.Message);
-          end;
-        end;
-      end;
+    if Id > 0 then
+    AtualizarId(Obj, Id);
+    except
+    on E: Exception do
+    begin
+    try
+    if Assigned(Query) and Query.Connection.InTransaction then
+    Query.Connection.Rollback;
+    finally
+    raise Exception.create('Erro ao executar query. Erro: ' +
+    E.Message);
     end;
-  finally
+    end;
+    end;
+    end;
+    finally
     Query := nil;
     FreeAndNil(fieldUtil);
-  end;
+    end; }
 end;
 
 function TDAO.Instanciar<T>: T;
@@ -549,118 +546,118 @@ var
   Tcjson: TClass;
   objetojson: TObject;
   Json: TJSONValue;
-  jsonutil: TJsonUtil;
+  // jsonutil: TJsonUtil;
 begin
-  try
+  { try
     Query := TDBConnection.GetInstance.Query;
 
     if TDBConnection.autoCommit then
     begin
-      Query.Connection.StartTransaction;
+    Query.Connection.StartTransaction;
     end;
 
     Query.Open(sql);
 
     if TDBConnection.autoCommit then
     begin
-      try
-        Query.Connection.Commit;
-      except
-        on E: Exception do
-        begin
-          try
-            if Assigned(Query) and Query.Connection.InTransaction then
-              Query.Connection.Rollback;
-          finally
-            raise Exception.create('Erro ao executar query. Erro: ' +
-              E.Message);
-          end;
-        end;
-      end;
+    try
+    Query.Connection.Commit;
+    except
+    on E: Exception do
+    begin
+    try
+    if Assigned(Query) and Query.Connection.InTransaction then
+    Query.Connection.Rollback;
+    finally
+    raise Exception.create('Erro ao executar query. Erro: ' +
+    E.Message);
+    end;
+    end;
+    end;
     end;
 
     if Query.RecordCount > 0 then
     begin
-      Obj := Instanciar<T>;
-      c := TObject(Obj).ClassType;
-      Result := TList<T>.create;
+    Obj := Instanciar<T>;
+    c := TObject(Obj).ClassType;
+    Result := TList<T>.create;
 
-      TypObj := Context.GetType(c);
+    TypObj := Context.GetType(c);
 
-      Maps := fieldUtil.getMap(Query, TypObj, TObject(Obj));
+    Maps := fieldUtil.getMap(Query, TypObj, TObject(Obj));
 
-      j := 0;
-      Query.RecNo := j;
+    j := 0;
+    Query.RecNo := j;
 
-      while not Query.Eof do
-      begin
-        Obj := Instanciar<T>;
-        Move(Obj, ResultAsPointer, SizeOf(Pointer));
-        while Maps.Count > i do
-        begin
-          Map := Maps[i];
-          try
-            Prop := TypObj.GetProperties[Map.indexprop];
-            if Map.tipo = tpString then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsString));
-            end
-            else if Map.tipo = tpBoleano then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(StrToBool(Query.Fields[Map.indexfield].AsString)));
-            end
-            else if Map.tipo = tpFloat then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsFloat));
-            end
-            else if Map.tipo = tpInteger then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsInteger));
-            end
-            else if Map.tipo = tpBoleano then
-            begin
-              try
-                Prop.SetValue(ResultAsPointer,
-                  TValue.From(Query.Fields[Map.indexfield].AsInteger <> 0));
-              except
-                on E: Exception do
-                  Prop.SetValue(ResultAsPointer, TValue.From(false));
-              end;
-
-            end
-            else if Map.tipo = tpData then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsDateTime));
-            end
-            else if Map.tipo = tpJsonb then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                jsonutil.JsonToObject(Query.Fields[Map.indexfield].AsString,
-                Map.cjson));
-            end;
-          except
-            on E: Exception do
-              raise Exception.create('Erro preencher ' + Prop.Name + '. ERROR:'
-                + E.Message);
-          end;
-
-          Inc(i);
-        end;
-        i := 0;
-
-        Result.Add(Obj);
-        Query.Next;
-      end;
+    while not Query.Eof do
+    begin
+    Obj := Instanciar<T>;
+    Move(Obj, ResultAsPointer, SizeOf(Pointer));
+    while Maps.Count > i do
+    begin
+    Map := Maps[i];
+    try
+    Prop := TypObj.GetProperties[Map.indexprop];
+    if Map.tipo = tpString then
+    begin
+    Prop.SetValue(ResultAsPointer,
+    TValue.From(Query.Fields[Map.indexfield].AsString));
+    end
+    else if Map.tipo = tpBoleano then
+    begin
+    Prop.SetValue(ResultAsPointer,
+    TValue.From(StrToBool(Query.Fields[Map.indexfield].AsString)));
+    end
+    else if Map.tipo = tpFloat then
+    begin
+    Prop.SetValue(ResultAsPointer,
+    TValue.From(Query.Fields[Map.indexfield].AsFloat));
+    end
+    else if Map.tipo = tpInteger then
+    begin
+    Prop.SetValue(ResultAsPointer,
+    TValue.From(Query.Fields[Map.indexfield].AsInteger));
+    end
+    else if Map.tipo = tpBoleano then
+    begin
+    try
+    Prop.SetValue(ResultAsPointer,
+    TValue.From(Query.Fields[Map.indexfield].AsInteger <> 0));
+    except
+    on E: Exception do
+    Prop.SetValue(ResultAsPointer, TValue.From(false));
     end;
-  finally
+
+    end
+    else if Map.tipo = tpData then
+    begin
+    Prop.SetValue(ResultAsPointer,
+    TValue.From(Query.Fields[Map.indexfield].AsDateTime));
+    end
+    else if Map.tipo = tpJsonb then
+    begin
+    Prop.SetValue(ResultAsPointer,
+    jsonutil.JsonToObject(Query.Fields[Map.indexfield].AsString,
+    Map.cjson));
+    end;
+    except
+    on E: Exception do
+    raise Exception.create('Erro preencher ' + Prop.Name + '. ERROR:'
+    + E.Message);
+    end;
+
+    Inc(i);
+    end;
+    i := 0;
+
+    Result.Add(Obj);
+    Query.Next;
+    end;
+    end;
+    finally
     Query := nil;
     FreeAndNil(fieldUtil);
-  end;
+    end; }
 end;
 
 procedure TDAO.Update<T>(Obj: TObject);
