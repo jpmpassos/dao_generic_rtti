@@ -5,7 +5,8 @@ interface
 uses FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Error,
   FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool,
   FireDAC.Stan.Async, FireDAC.Phys, FireDAC.Comp.Client, FireDAC.VCLUI.Wait,
-  FireDAC.Comp.UI, FireDAC.Phys.IBBase, FireDAC.Phys.FB, FireDAC.Phys.PG;
+  FireDAC.Comp.UI, FireDAC.Phys.IBBase, FireDAC.Phys.FB, FireDAC.Phys.PG,
+  UControleConexao;
 
 type
   TDBConnection = class
@@ -13,6 +14,7 @@ type
     Fconexao: TFDConnection;
     Fquery: TFDQuery;
     FDPhysPgDriverLink: TFDPhysPgDriverLink;
+    FConexoesLista: TConexoesLista;
     class var Fautocommit: Boolean;
     class var FInstance: TDBConnection;
 
@@ -150,16 +152,20 @@ begin
 
   Fconexao.DriverName := 'FB';
   Fconexao.LoginPrompt := False;
-  Fconexao.Params.Values['User_Name'] := TSystemConfig.GetInstancia.username;//'SYSDBA';
-  Fconexao.Params.Values['Password'] := TSystemConfig.GetInstancia.password;//'masterkey';
+  Fconexao.Params.Values['User_Name'] := TSystemConfig.GetInstancia.username;
+  // 'SYSDBA';
+  Fconexao.Params.Values['Password'] := TSystemConfig.GetInstancia.password;
+  // 'masterkey';
   Fconexao.Params.Values['Protocol'] := 'TCPIP';
-  Fconexao.Params.Values['Server'] := TSystemConfig.GetInstancia.server;//'localhost';
-  Fconexao.Params.Values['Database'] := TSystemConfig.GetInstancia.database;//ExtractFileDir(Application.ExeName) +    '\DB\DB_PAF_ECF.FDB';
-  Fconexao.Params.Values['CharacterSet'] := TSystemConfig.GetInstancia.charset;//'ISO8859_1';
+  Fconexao.Params.Values['Server'] := TSystemConfig.GetInstancia.server;
+  // 'localhost';
+  Fconexao.Params.Values['Database'] := TSystemConfig.GetInstancia.database;
+  // ExtractFileDir(Application.ExeName) +    '\DB\DB_PAF_ECF.FDB';
+  Fconexao.Params.Values['CharacterSet'] := TSystemConfig.GetInstancia.charset;
+  // 'ISO8859_1';
 
   Fconexao.Open;
 end;
-
 
 procedure TDBConnection.carregarPG;
 begin

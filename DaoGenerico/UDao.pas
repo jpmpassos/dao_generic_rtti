@@ -3,12 +3,14 @@ unit UDao;
 interface
 
 Uses
-  Rtti, UAttributes, TypInfo, SysUtils, Forms, Vcl.Dialogs, FireDAC.Comp.Client,
-  Generics.Collections, Endereco;
+  Rtti, UAttributes, TypInfo, SysUtils, FireDAC.Comp.Client,
+  Generics.Collections, UControleConexao, UFieldUtil;
 
 type
   TDAO = class
   private
+    fautocomite: Boolean;
+    Session: TConnetion;
     function Instanciar<T: Class>: T;
 
     procedure InsertFirebird<T: Class>(Obj: TObject);
@@ -16,17 +18,26 @@ type
     procedure AtualizarId(Obj: TObject; Id: Integer);
     function QueryFB<T: Class>(sql: string): TList<T>;
     function QueryPG<T: Class>(sql: string): TList<T>;
+
+    function CarregarObjeto<T: Class>(Maps: TList<TMapFieldProp>;
+      Map: TMapFieldProp; TypObj: TRttiType): T;
+
+    function GetConection: TConnetion;
   public
     function Insert<T: Class>(Obj: TObject): Integer;
     function Query<T: Class>(sql: string): TList<T>;
+    function Get<T: Class>(codigo: Integer): T;
     procedure Delete<T: Class>(Obj: TObject);
     procedure Update<T: Class>(Obj: TObject);
+
+    function CommitRelease: Boolean;
+    constructor create(autoCommit: Boolean = true);
   end;
 
 implementation
 
 Uses
-  UFieldUtil, REST.Json, UDBConnection, USystemConfig, System.Json,
+  REST.Json, UDBConnection, USystemConfig, System.Json,
   Data.DBXJSONReflect, UJsonUtil;
 
 { TDAO }
@@ -41,7 +52,7 @@ var
   IsId, IsAutoincremente: Boolean;
   Atributo: TCustomAttribute;
 begin
-  Contexto := TRttiContext.Create;
+  Contexto := TRttiContext.create;
   TypObj := Contexto.GetType(TObject(Obj).ClassInfo);
   Move(Obj, ResultAsPointer, SizeOf(Pointer));
 
@@ -58,6 +69,112 @@ begin
   end;
 end;
 
+function TDAO.CarregarObjeto<T>(Maps: TList<TMapFieldProp>; Map: TMapFieldProp;
+  TypObj: TRttiType): T;
+var
+  i: Integer;
+  strTemp: string;
+  Prop: TRttiProperty;
+  SourceAsPointer, ResultAsPointer: Pointer;
+begin
+  i := 0;
+  Result := Instanciar<T>;
+  Move(Result, ResultAsPointer, SizeOf(Pointer));
+  while Maps.Count > i do
+  begin
+    Map := Maps[i];
+    try
+      Prop := TypObj.GetProperties[Map.indexprop];
+      if Map.tipo = tpString then
+      begin
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(Session.Query.Fields[Map.indexfield].AsString));
+      end
+      else if Map.tipo = tpBoleano then
+      begin
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(StrToBool(Session.Query.Fields[Map.indexfield]
+          .AsString)));
+      end
+      else if Map.tipo = tpFloat then
+      begin
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(Session.Query.Fields[Map.indexfield].AsFloat));
+      end
+      else if Map.tipo = tpInteger then
+      begin
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(Session.Query.Fields[Map.indexfield].AsInteger));
+      end
+      else if Map.tipo = tpBoleano then
+      begin
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(Session.Query.Fields[Map.indexfield].AsInteger <> 0));
+      end
+      else if Map.tipo = tpData then
+      begin
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(Session.Query.Fields[Map.indexfield].AsDateTime));
+      end
+      else if Map.tipo = tpJsonb then
+      begin
+        // TJson.JsonToObject<Prop.PropertyType.ClassType>(Query.Fields[Map.indexfield].AsString);
+        strTemp := Session.Query.Fields[Map.indexfield].AsString;
+        Prop.SetValue(ResultAsPointer,
+          TValue.From(Session.Query.Fields[Map.indexfield].AsString));
+      end;
+    except
+      on E: Exception do
+        raise Exception.create('Erro preencher ' + Prop.Name + '. ERROR:' +
+          E.Message);
+    end;
+
+    Inc(i);
+  end;
+end;
+
+function TDAO.CommitRelease: Boolean;
+begin
+  try
+    if not fautocomite then
+    begin
+      try
+        Session.Query.Connection.Commit;
+        Exit(true)
+      except
+        on E: Exception do
+        begin
+          try
+            if Session.InTransaction then
+              Session.Rollback;
+          finally
+            Result := false;
+          end;
+        end;
+      end;
+    end;
+  finally
+    try
+      TConexoesLista.Release(Session);
+
+      FreeAndNil(Session);
+    except
+      on E: Exception do
+    end;
+  end;
+end;
+
+constructor TDAO.create(autoCommit: Boolean);
+begin
+  fautocomite := autoCommit;
+
+  if not autoCommit then
+  begin
+    Session := TConexoesLista.Acquire();
+    Session.StartTransaction;
+  end;
+end;
+
 procedure TDAO.Delete<T>(Obj: TObject);
 var
   fieldUtil: TFieldUtil;
@@ -65,12 +182,12 @@ var
   script: String;
 begin
   try
-    fieldUtil := TFieldUtil.Create;
+    fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptDelete<T>(Obj);
 
     Query := TDBConnection.GetInstance.Query;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       Query.Connection.StartTransaction;
     end;
@@ -79,7 +196,7 @@ begin
     Query.sql.Add(script);
     Query.ExecSQL;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       try
         Query.Connection.Commit;
@@ -90,7 +207,7 @@ begin
             if Assigned(Query) and Query.Connection.InTransaction then
               Query.Connection.Rollback;
           finally
-            raise Exception.Create('Erro ao executar query. Erro: ' +
+            raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
         end;
@@ -100,6 +217,106 @@ begin
     Query := nil;
     FreeAndNil(fieldUtil);
   end;
+end;
+
+function TDAO.Get<T>(codigo: Integer): T;
+var
+  Maps: TList<TMapFieldProp>;
+  Method: TRttiMethod;
+  Map: TMapFieldProp;
+  Obj: T;
+  c: TClass;
+  value: TValue;
+  Context: TRttiContext;
+  TypObj: TRttiType;
+  j, i: Integer;
+  fieldUtil: TFieldUtil;
+  sql: string;
+begin
+  try
+    if fautocomite then
+    begin
+      Session := TConexoesLista.Acquire();
+      Session.StartTransaction;
+    end;
+
+    fieldUtil := TFieldUtil.create;
+
+    Obj := Instanciar<T>;
+
+    sql := fieldUtil.ScriptGet(Obj);
+
+    try
+      FreeAndNil(Obj);
+    except
+      on E: Exception do
+    end;
+
+    if sql.IsEmpty then
+      raise Exception.create('Erro ao recuperar objeto.a');
+
+    Session.Query.Open(sql + IntToStr(codigo));
+
+    if fautocomite then
+    begin
+      try
+        Session.Query.Connection.Commit;
+        TConexoesLista.Release(Session);
+      except
+        on E: Exception do
+        begin
+          try
+            if Session.InTransaction then
+              Session.Rollback;
+          finally
+            TConexoesLista.Release(Session);
+            raise Exception.create('Erro ao executar query. Erro: ' +
+              E.Message);
+          end;
+        end;
+      end;
+    end;
+
+    if Session.Query.RecordCount > 0 then
+    begin
+      Obj := Instanciar<T>;
+      c := TObject(Obj).ClassType;
+      TypObj := Context.GetType(c);
+      fieldUtil := TFieldUtil.create;
+      Maps := fieldUtil.getMap(Session.Query, TypObj, TObject(Obj));
+      Result := CarregarObjeto<T>(Maps, Map, TypObj);
+    end;
+  finally
+    try
+      FreeAndNil(Obj);
+    except
+      on E: Exception do
+    end;
+
+    try
+      FreeAndNil(c);
+    except
+      on E: Exception do
+    end;
+
+    try
+      FreeAndNil(TypObj);
+    except
+      on E: Exception do
+    end;
+
+    try
+      FreeAndNil(fieldUtil);
+    except
+      on E: Exception do
+        fieldUtil := nil;
+    end;
+  end;
+end;
+
+function TDAO.GetConection: TConnetion;
+begin
+  Exit(TConexoesLista.Acquire());
 end;
 
 function TDAO.Insert<T>(Obj: TObject): Integer;
@@ -114,48 +331,50 @@ procedure TDAO.InsertFirebird<T>(Obj: TObject);
 var
   Id: Integer;
   fieldUtil: TFieldUtil;
-  Query: TFDQuery;
   script: TScriptInsert;
 begin
   try
-    fieldUtil := TFieldUtil.Create;
+    fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptInserte<T>(Obj);
 
-    Query := TDBConnection.GetInstance.Query;
-
-    if TDBConnection.autocommit then
+    if fautocomite then
     begin
-      Query.Connection.StartTransaction;
+      Session := TConexoesLista.Acquire();
+      Session.StartTransaction;
     end;
-    Query.Close;
-    Query.sql.Clear;
-    Query.sql.Add(script.script);
-    Query.Open;
-    if not script.chaveprimaria.IsEmpty then
-      Id := Query.FieldByName(script.chaveprimaria).AsInteger;
 
-    if TDBConnection.autocommit then
+    Session.Query.Close;
+    Session.Query.sql.Clear;
+    Session.Query.sql.Add(script.script);
+    Session.Query.Open;
+
+    if not script.chaveprimaria.IsEmpty then
+      Id := Session.Query.FieldByName(script.chaveprimaria).AsInteger;
+
+    if fautocomite then
     begin
       try
-        Query.Connection.Commit;
-
-        if Id > 0 then
-          AtualizarId(Obj, Id);
+        Session.Query.Connection.Commit;
       except
         on E: Exception do
         begin
           try
-            if Assigned(Query) and Query.Connection.InTransaction then
-              Query.Connection.Rollback;
+            if Session.InTransaction then
+              Session.Rollback;
           finally
-            raise Exception.Create('Erro ao executar query. Erro: ' +
+            raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
         end;
       end;
     end;
+
+    if Id > 0 then
+      AtualizarId(Obj, Id);
   finally
-    Query := nil;
+    if fautocomite then
+      TConexoesLista.Release(Session);
+
     FreeAndNil(fieldUtil);
   end;
 end;
@@ -168,12 +387,12 @@ var
   script: TScriptInsert;
 begin
   try
-    fieldUtil := TFieldUtil.Create;
+    fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptInsertePG<T>(Obj);
 
     Query := TDBConnection.GetInstance.Query;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       Query.Connection.StartTransaction;
     end;
@@ -192,7 +411,7 @@ begin
       Id := Query.FieldByName('cod').AsInteger;
     end;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       try
         Query.Connection.Commit;
@@ -206,7 +425,7 @@ begin
             if Assigned(Query) and Query.Connection.InTransaction then
               Query.Connection.Rollback;
           finally
-            raise Exception.Create('Erro ao executar query. Erro: ' +
+            raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
         end;
@@ -227,16 +446,16 @@ var
 begin
   tipo := ctx.GetType(TypeInfo(T));
   tipoInstancia := (ctx.FindType(tipo.QualifiedName) as TRttiInstanceType);
-  valor := tipoInstancia.MetaclassType.Create;
-  result := valor.AsType<T>;
+  valor := tipoInstancia.MetaclassType.create;
+  Result := valor.AsType<T>;
 end;
 
 function TDAO.Query<T>(sql: string): TList<T>;
 begin
   if TSystemConfig.GetInstancia.tipoSGBD = tpFirebird then
-    result := QueryFB<T>(sql)
+    Result := QueryFB<T>(sql)
   else
-    result := QueryPG<T>(sql);
+    Result := QueryPG<T>(sql);
 end;
 
 function TDAO.QueryFB<T>(sql: string): TList<T>;
@@ -249,117 +468,83 @@ var
   value: TValue;
   Context: TRttiContext;
   TypObj: TRttiType;
-  SourceAsPointer, ResultAsPointer: Pointer;
-  Prop: TRttiProperty;
   j, i: Integer;
-  Query: TFDQuery;
   fieldUtil: TFieldUtil;
-  strTemp: string;
 begin
   try
-    Query := TDBConnection.GetInstance.Query;
-
-    if TDBConnection.autocommit then
+    if fautocomite then
     begin
-      Query.Connection.StartTransaction;
+      Session := TConexoesLista.Acquire();
+      Session.StartTransaction;
     end;
 
-    Query.Open(sql);
+    Session.Query.Open(sql);
 
-    if TDBConnection.autocommit then
+    if fautocomite then
     begin
       try
-        Query.Connection.Commit;
+        Session.Query.Connection.Commit;
+        TConexoesLista.Release(Session);
       except
         on E: Exception do
         begin
           try
-            if Assigned(Query) and Query.Connection.InTransaction then
-              Query.Connection.Rollback;
+            if Session.InTransaction then
+              Session.Rollback;
           finally
-            raise Exception.Create('Erro ao executar query. Erro: ' +
+            TConexoesLista.Release(Session);
+            raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
         end;
       end;
     end;
 
-    if Query.RecordCount > 0 then
+    if Session.Query.RecordCount > 0 then
     begin
       Obj := Instanciar<T>;
       c := TObject(Obj).ClassType;
-      result := TList<T>.Create;
+      Result := TList<T>.create;
 
       TypObj := Context.GetType(c);
 
-      Maps := fieldUtil.getMap(Query, TypObj, TObject(Obj));
+      fieldUtil := TFieldUtil.create;
+      Maps := fieldUtil.getMap(Session.Query, TypObj, TObject(Obj));
 
       j := 0;
-      Query.RecNo := j;
+      Session.Query.RecNo := j;
 
-      while not Query.Eof do
+      while not Session.Query.Eof do
       begin
-        Obj := Instanciar<T>;
-        Move(Obj, ResultAsPointer, SizeOf(Pointer));
-        while Maps.Count > i do
-        begin
-          Map := Maps[i];
-          try
-            Prop := TypObj.GetProperties[Map.indexprop];
-            if Map.tipo = tpString then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsString));
-            end
-            else if Map.tipo = tpBoleano then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(StrToBool(Query.Fields[Map.indexfield].AsString)));
-            end
-            else if Map.tipo = tpFloat then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsFloat));
-            end
-            else if Map.tipo = tpInteger then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsInteger));
-            end
-            else if Map.tipo = tpBoleano then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsInteger <> 0));
-            end
-            else if Map.tipo = tpData then
-            begin
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsDateTime));
-            end
-            else if Map.tipo = tpJsonb then
-            begin
-              // TJson.JsonToObject<Prop.PropertyType.ClassType>(Query.Fields[Map.indexfield].AsString);
-              strTemp := Query.Fields[Map.indexfield].AsString;
-              Prop.SetValue(ResultAsPointer,
-                TValue.From(Query.Fields[Map.indexfield].AsString));
-            end;
-          except
-            on E: Exception do
-              raise Exception.Create('Erro preencher ' + Prop.Name + '. ERROR:'
-                + E.Message);
-          end;
-
-          Inc(i);
-        end;
-        i := 0;
-
-        result.Add(Obj);
-        Query.Next;
+        Result.Add(CarregarObjeto<T>(Maps, Map, TypObj));
+        Session.Query.Next;
       end;
     end;
   finally
-    Query := nil;
-    FreeAndNil(fieldUtil);
+    try
+      FreeAndNil(Obj);
+    except
+      on E: Exception do
+    end;
+
+    try
+      FreeAndNil(c);
+    except
+      on E: Exception do
+    end;
+
+    try
+      FreeAndNil(TypObj);
+    except
+      on E: Exception do
+    end;
+
+    try
+      FreeAndNil(fieldUtil);
+    except
+      on E: Exception do
+        fieldUtil := nil;
+    end;
   end;
 end;
 
@@ -385,20 +570,19 @@ var
   Tcjson: TClass;
   objetojson: TObject;
   Json: TJSONValue;
-  Endereco: TEndereco;
   jsonutil: TJsonUtil;
 begin
   try
     Query := TDBConnection.GetInstance.Query;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       Query.Connection.StartTransaction;
     end;
 
     Query.Open(sql);
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       try
         Query.Connection.Commit;
@@ -409,7 +593,7 @@ begin
             if Assigned(Query) and Query.Connection.InTransaction then
               Query.Connection.Rollback;
           finally
-            raise Exception.Create('Erro ao executar query. Erro: ' +
+            raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
         end;
@@ -420,7 +604,7 @@ begin
     begin
       Obj := Instanciar<T>;
       c := TObject(Obj).ClassType;
-      result := TList<T>.Create;
+      Result := TList<T>.create;
 
       TypObj := Context.GetType(c);
 
@@ -476,12 +660,13 @@ begin
             end
             else if Map.tipo = tpJsonb then
             begin
-              Prop.SetValue(ResultAsPointer, jsonutil.JsonToObject
-                (Query.Fields[Map.indexfield].AsString, Map.cjson));
+              Prop.SetValue(ResultAsPointer,
+                jsonutil.JsonToObject(Query.Fields[Map.indexfield].AsString,
+                Map.cjson));
             end;
           except
             on E: Exception do
-              raise Exception.Create('Erro preencher ' + Prop.Name + '. ERROR:'
+              raise Exception.create('Erro preencher ' + Prop.Name + '. ERROR:'
                 + E.Message);
           end;
 
@@ -489,7 +674,7 @@ begin
         end;
         i := 0;
 
-        result.Add(Obj);
+        Result.Add(Obj);
         Query.Next;
       end;
     end;
@@ -506,12 +691,12 @@ var
   script: String;
 begin
   try
-    fieldUtil := TFieldUtil.Create;
+    fieldUtil := TFieldUtil.create;
     script := fieldUtil.ScriptUpdate<T>(Obj);
 
     Query := TDBConnection.GetInstance.Query;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       Query.Connection.StartTransaction;
     end;
@@ -520,7 +705,7 @@ begin
     Query.sql.Add(script);
     Query.ExecSQL;
 
-    if TDBConnection.autocommit then
+    if TDBConnection.autoCommit then
     begin
       try
         Query.Connection.Commit;
@@ -531,7 +716,7 @@ begin
             if Assigned(Query) and Query.Connection.InTransaction then
               Query.Connection.Rollback;
           finally
-            raise Exception.Create('Erro ao executar query. Erro: ' +
+            raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
         end;
@@ -542,5 +727,9 @@ begin
     FreeAndNil(fieldUtil);
   end;
 end;
+
+initialization
+
+finalization
 
 end.

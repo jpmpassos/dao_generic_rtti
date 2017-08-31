@@ -15,6 +15,7 @@ type
     Fdatabase: String;
     Fport: String;
     Fcharset: string;
+    Fcaminhoaplicacao: string;
 
     class var finstancia: TSystemConfig;
 
@@ -29,6 +30,8 @@ type
     property database: String read Fdatabase write Fdatabase;
     property port: String read Fport write Fport;
     property charset: string read Fcharset write Fcharset;
+    property caminhoaplicacao: string read Fcaminhoaplicacao
+      write Fcaminhoaplicacao;
 
     class function GetInstancia(): TSystemConfig;
     constructor Create;
@@ -46,16 +49,25 @@ var
   arquivo: TStringList;
   instancia: TSystemConfig;
 begin
+  Self.caminhoaplicacao := ExtractFileDir(Application.ExeName);
+
   arquivo := TStringList.Create;
-  arquivo.LoadFromFile(ExtractFileDir(Application.ExeName) +
-    '\SystemConfig.conf');
+
+  arquivo.LoadFromFile(Self.caminhoaplicacao + '\SystemConfig.conf');
   instancia := TJson.JsonToObject<TSystemConfig>(arquivo[0]);
 
   Self.password := instancia.password;
   Self.username := instancia.username;
   Self.server := instancia.server;
-  Self.database := instancia.database;
   Self.tipoSGBD := instancia.tipoSGBD;
+
+  if instancia.tipoSGBD = tpFirebird then
+    Self.database := Self.caminhoaplicacao + StringReplace(instancia.database,
+      '/', '\', [rfReplaceAll])
+  else
+    Self.database := instancia.database;
+
+
 end;
 
 constructor TSystemConfig.Create;

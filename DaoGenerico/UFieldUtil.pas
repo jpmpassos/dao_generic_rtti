@@ -40,7 +40,6 @@ type
 
   TFieldUtil = class
   private
-    Fdquery: TFDQuery;
     function getTipoCampo(Prop: TRttiProperty; Atributo: TCustomAttribute;
       Instance: Pointer): TTipo;
     function PropIsId(Atributo: TCustomAttribute; Prop: TRttiProperty): Boolean;
@@ -63,6 +62,7 @@ type
       Instance: Pointer): TObject;
 
     function ScriptInserte<T>(Obj: TObject): TScriptInsert;
+    function ScriptGet(Obj: TObject): string;
     function ScriptInsertePG<T>(Obj: TObject): TScriptInsert;
 
     function ScriptUpdate<T>(Obj: TObject): String;
@@ -85,14 +85,25 @@ var
   TypObj: TRttiType;
   Atributo: TCustomAttribute;
   strTable: String;
+  Prop: TRttiProperty;
+  i: Integer;
+  IsId: Boolean;
 begin
   Contexto := TRttiContext.Create;
   TypObj := Contexto.GetType(TObject(Obj).ClassInfo);
-  for Atributo in TypObj.GetAttributes do
+
+  for Prop in TypObj.GetProperties do
   begin
-    // if Atributo is PrimaryKeyAttribute then
-    // Exit(PrimaryKeyAttribute(Atributo).nome);
+    IsId := PropIsId(Atributo, Prop);
+    if IsId then
+      for Atributo in Prop.GetAttributes do
+      begin
+        if Atributo is CampoAttribute then
+          Exit(CampoAttribute(Atributo).nome);
+      end;
   end;
+
+  Result := EmptyStr;
 end;
 
 function TFieldUtil.GetNomeTabela(Obj: TObject): String;
@@ -289,6 +300,26 @@ begin
   Result := strDelete + strWhere;
 end;
 
+function TFieldUtil.ScriptGet(Obj: TObject): string;
+var
+  strPrimaryKey, strTabela: String;
+
+begin
+  strPrimaryKey := '';
+  strTabela := '';
+
+  strTabela := GetNomeTabela(Obj);
+  strPrimaryKey := GetNomePrimaryKey(Obj);
+
+  if (strPrimaryKey.Trim <> '') and (strTabela.Trim <> '') then
+  begin
+    Result := ' select first 1 * from ' + strTabela + ' where ' +
+      strPrimaryKey + ' = ';
+  end
+  else
+    Result := EmptyStr;
+end;
+
 function TFieldUtil.ScriptInserte<T>(Obj: TObject): TScriptInsert;
 var
   Contexto: TRttiContext;
@@ -372,7 +403,7 @@ begin
   strInsert := strInsert + ' ( ' + strFields + ' )  VALUES ( ' +
     strValues + ' )';
 
-  if (trim(strPrimaryKey) <> '') and
+  if (Trim(strPrimaryKey) <> '') and
     (TSystemConfig.GetInstancia.Tiposgbd = tpFirebird) then
     strInsert := strInsert + ' RETURNING ' + strPrimaryKey + ';';
 
@@ -458,7 +489,7 @@ begin
   strInsert := strInsert + ' ( ' + strFields + ' )  VALUES ( ' +
     strValues + ' )';
 
-  if (trim(strPrimaryKey) <> '') and
+  if (Trim(strPrimaryKey) <> '') and
     (TSystemConfig.GetInstancia.Tiposgbd = tpFirebird) then
     strInsert := strInsert + ' RETURNING ' + strPrimaryKey + ';';
 

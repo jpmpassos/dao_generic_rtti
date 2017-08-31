@@ -19,7 +19,9 @@ uses
   UDBConnection in 'DaoGenerico\UDBConnection.pas',
   UFieldUtil in 'DaoGenerico\UFieldUtil.pas',
   UJsonUtil in 'DaoGenerico\UJsonUtil.pas',
-  USystemConfig in 'DaoGenerico\USystemConfig.pas';
+  USystemConfig in 'DaoGenerico\USystemConfig.pas',
+  UControleConexao in 'UControleConexao.pas',
+  USafeUnit in 'USafeUnit.pas';
 
 {$R *.res}
 
