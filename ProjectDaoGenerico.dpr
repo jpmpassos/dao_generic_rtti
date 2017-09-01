@@ -19,10 +19,11 @@ uses
   UFieldUtil in 'DaoGenerico\UFieldUtil.pas',
   UJsonUtil in 'DaoGenerico\UJsonUtil.pas',
   USystemConfig in 'DaoGenerico\USystemConfig.pas',
-  UControleConexao in 'DaoGenerico\UControleConexao.pas',
   USafeUnit in 'USafeUnit.pas',
   UObjFunctions in 'UObjFunctions.pas',
-  UContatoDAO in 'UContatoDAO.pas';
+  UContatoDAO in 'UContatoDAO.pas',
+  USession in 'DaoGenerico\USession.pas',
+  UControleSession in 'DaoGenerico\UControleSession.pas';
 
 {$R *.res}
 

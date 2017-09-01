@@ -39,7 +39,7 @@ implementation
 {$R *.dfm}
 
 uses UObjectClone, UDao, UContato, UCupom, UProduto, Generics.Collections,
-  UCliente, System.Json, Endereco, UContatoDAO;
+  UCliente, System.Json, Endereco, UContatoDAO, UControleSession, USession;
 
 procedure TForm1.Button1Click(Sender: TObject);
 var
@@ -59,6 +59,8 @@ end;
 procedure TForm1.Button2Click(Sender: TObject);
 var
   dao: TContatoDAO;
+  session: TSession;
+
   listaContato: TList<TContato>;
   listaProduto: TList<TProduto>;
   listaCupom: TList<TCupom>;
@@ -66,57 +68,58 @@ var
   datai, dataf: TTime;
 begin
   datai := Now;
-  dao := TContatoDAO.create(False);
+  session := TControleSession.Acquire;
+
+  dao := TContatoDAO.Create(session);
 
   listaContato := dao.CarregarContatos;
 
   dataf := Now;
 
-  if dao.CommitRelease then
+  if TControleSession.CommitSesion(session) then
     ShowMessage('Comiit realizado com sucesso!');
-
 
   ShowMessage(TimeToStr(dataf - datai));
 end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
- { TThread.Queue(nil,
+  { TThread.Queue(nil,
     procedure
     var
-      dao: TDAO;
-      contato: TContato;
-      cliente: TCliente;
+    dao: TDAO;
+    contato: TContato;
+    cliente: TCliente;
     begin
-      cliente := TCliente.Create;
-      cliente.clienteid := 13;
-      cliente.nome := 'nome 13';
-      cliente.descricao := 'nome 13 teste';
-      cliente.cpfcnpj := '08565412521';
-      cliente.rgie := 'mg15456789';
-      cliente.codigointerno := 1;
-      cliente.status := 'Ativo';
-      cliente.Endereco := TEndereco.Create;
+    cliente := TCliente.Create;
+    cliente.clienteid := 13;
+    cliente.nome := 'nome 13';
+    cliente.descricao := 'nome 13 teste';
+    cliente.cpfcnpj := '08565412521';
+    cliente.rgie := 'mg15456789';
+    cliente.codigointerno := 1;
+    cliente.status := 'Ativo';
+    cliente.Endereco := TEndereco.Create;
 
-      cliente.Endereco.numero := 13;
-      cliente.Endereco.Endereco := 'Teste nome 13';
+    cliente.Endereco.numero := 13;
+    cliente.Endereco.Endereco := 'Teste nome 13';
 
-      dao := TDAO.Create;
-      dao.Update<TCliente>(cliente);
-      // dao.Insert<TCliente>(cliente);
+    dao := TDAO.Create;
+    dao.Update<TCliente>(cliente);
+    // dao.Insert<TCliente>(cliente);
 
-      {
-        contato := TContato.Create;
-        contato.nome := 'Teste 1';
-        contato.email := 'teste1@teste.com.br';
-        contato.telefone := '33988823270';
-        dao.Insert<TContato>(contato);
-        ShowMessage(contato.ObjectToJSON<TContato>(contato).ToJSON);
-        ShowMessage(TJson.ObjectToJsonString(contato)); }
-      // contato := TJson.JsonToObject<TContato>('{"email":"teste1@teste.com.br","contatoid":0,"nome":"Volta","telefone":"33988823270"}');
+    {
+    contato := TContato.Create;
+    contato.nome := 'Teste 1';
+    contato.email := 'teste1@teste.com.br';
+    contato.telefone := '33988823270';
+    dao.Insert<TContato>(contato);
+    ShowMessage(contato.ObjectToJSON<TContato>(contato).ToJSON);
+    ShowMessage(TJson.ObjectToJsonString(contato)); }
+  // contato := TJson.JsonToObject<TContato>('{"email":"teste1@teste.com.br","contatoid":0,"nome":"Volta","telefone":"33988823270"}');
 
-      // ShowMessage(contato.nome);
-//    end);
+  // ShowMessage(contato.nome);
+  // end);
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
@@ -124,7 +127,7 @@ var
   dao: TDAO;
   listaClinente: TList<TCliente>;
 begin
- // listaClinente := dao.Query<TCliente>('SELECT * from cliente');
+  // listaClinente := dao.Query<TCliente>('SELECT * from cliente');
 
 end;
 
@@ -145,7 +148,7 @@ begin
   // cliente.excluido := False;
 
   dao := TDAO.Create;
-  //dao.Update<TContato>(cliente);
+  // dao.Update<TContato>(cliente);
 
 end;
 
@@ -165,7 +168,7 @@ begin
   // cliente.excluido := False;
 
   dao := TDAO.Create;
-  //dao.Insert<TCliente>(cliente);
+  // dao.Insert<TCliente>(cliente);
 
 end;
 
@@ -178,25 +181,23 @@ begin
   cliente.clienteid := 1;
 
   dao := TDAO.Create;
-  //dao.Delete<TCliente>(cliente);
+  // dao.Delete<TCliente>(cliente);
 
 end;
 
 procedure TForm1.Button8Click(Sender: TObject);
 var
-  dao: TDAO;
+  contatodao: TContatoDAO;
   contato: TContato;
   datai, dataf: TTime;
 begin
   datai := Now;
-  dao := TDAO.create(False);
+  contatodao := TContatoDAO.Create();
 
-  //contato := dao.Get<TContato>(5);
+  contato := contatodao.Carregar(5);
 
   dataf := Now;
 
-  if dao.CommitRelease then
-    ShowMessage('Comiit realizado com sucesso!');
 
   ShowMessage(TimeToStr(dataf - datai));
 end;

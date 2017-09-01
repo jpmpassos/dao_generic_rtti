@@ -14,8 +14,8 @@ object Form1: TForm1
   PixelsPerInch = 96
   TextHeight = 13
   object Button1: TButton
-    Left = 80
-    Top = 32
+    Left = 64
+    Top = 240
     Width = 75
     Height = 25
     Caption = 'Teste Clone'
@@ -23,8 +23,8 @@ object Form1: TForm1
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 208
-    Top = 32
+    Left = 24
+    Top = 39
     Width = 75
     Height = 25
     Caption = 'Teste Query'
@@ -77,8 +77,8 @@ object Form1: TForm1
     OnClick = Button7Click
   end
   object Button8: TButton
-    Left = 64
-    Top = 96
+    Left = 8
+    Top = 87
     Width = 75
     Height = 25
     Caption = 'Teste Get'

@@ -4,13 +4,13 @@ interface
 
 Uses
   Rtti, UAttributes, TypInfo, SysUtils, FireDAC.Comp.Client,
-  Generics.Collections, UControleConexao, UFieldUtil;
+  Generics.Collections, UControleSession, UFieldUtil, USession;
 
 type
   TDAO = class
   private
     fautocomite: Boolean;
-    Session: TConnetion;
+    Session: TSession;
     function Instanciar<T: Class>: T;
     procedure InsertFirebird<T: Class>(Obj: TObject);
     procedure InsertPostgresql<T: Class>(Obj: TObject);
@@ -20,16 +20,16 @@ type
     function CarregarObjeto<T: Class>(Maps: TList<TMapFieldProp>;
       Map: TMapFieldProp; TypObj: TRttiType): T;
     procedure FreeObject(var Obj);
-    function GetConection: TConnetion;
+    function GetConection: TSession;
   protected
     function Query<T: Class>(sql: string): TList<T>;
     function Insert<T: Class>(Obj: TObject): Integer;
     function Get<T: Class>(codigo: Integer): T;
     procedure Delete<T: Class>(Obj: TObject);
     procedure Update<T: Class>(Obj: TObject);
-  public
     function CommitRelease: Boolean;
-    constructor create(autoCommit: Boolean = true);
+  public
+    constructor create(psession: TSession = nil);
 
   end;
 
@@ -160,7 +160,7 @@ begin
     end;
   finally
     try
-      TConexoesLista.Release(Session);
+      TControleSession.Release(Session);
 
       FreeAndNil(Session);
     except
@@ -169,13 +169,13 @@ begin
   end;
 end;
 
-constructor TDAO.create(autoCommit: Boolean);
+constructor TDAO.create(psession: TSession);
 begin
-  fautocomite := autoCommit;
+  fautocomite := (psession = nil);
 
-  if not autoCommit then
+  if not fautocomite then
   begin
-    Session := TConexoesLista.Acquire();
+    Session := TControleSession.Acquire();
     Session.StartTransaction;
   end;
 end;
@@ -191,7 +191,7 @@ begin
 
     if fautocomite then
     begin
-      Session := TConexoesLista.Acquire();
+      Session := TControleSession.Acquire();
       Session.StartTransaction;
     end;
 
@@ -249,7 +249,7 @@ begin
   try
     if fautocomite then
     begin
-      Session := TConexoesLista.Acquire();
+      Session := TControleSession.Acquire();
       Session.StartTransaction;
     end;
 
@@ -274,7 +274,7 @@ begin
     begin
       try
         Session.Query.Connection.Commit;
-        TConexoesLista.Release(Session);
+        TControleSession.Release(Session);
       except
         on E: Exception do
         begin
@@ -282,7 +282,7 @@ begin
             if Session.InTransaction then
               Session.Rollback;
           finally
-            TConexoesLista.Release(Session);
+            TControleSession.Release(Session);
             raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
@@ -308,9 +308,9 @@ begin
   end;
 end;
 
-function TDAO.GetConection: TConnetion;
+function TDAO.GetConection: TSession;
 begin
-  Exit(TConexoesLista.Acquire());
+  Exit(TControleSession.Acquire());
 end;
 
 function TDAO.Insert<T>(Obj: TObject): Integer;
@@ -333,7 +333,7 @@ begin
 
     if fautocomite then
     begin
-      Session := TConexoesLista.Acquire();
+      Session := TControleSession.Acquire();
       Session.StartTransaction;
     end;
 
@@ -367,7 +367,7 @@ begin
       AtualizarId(Obj, Id);
   finally
     if fautocomite then
-      TConexoesLista.Release(Session);
+      TControleSession.Release(Session);
 
     FreeObject(fieldUtil);
     FreeObject(script);
@@ -469,7 +469,7 @@ begin
   try
     if fautocomite then
     begin
-      Session := TConexoesLista.Acquire();
+      Session := TControleSession.Acquire();
       Session.StartTransaction;
     end;
 
@@ -479,7 +479,7 @@ begin
     begin
       try
         Session.Query.Connection.Commit;
-        TConexoesLista.Release(Session);
+        TControleSession.Release(Session);
       except
         on E: Exception do
         begin
@@ -487,7 +487,7 @@ begin
             if Session.InTransaction then
               Session.Rollback;
           finally
-            TConexoesLista.Release(Session);
+            TControleSession.Release(Session);
             raise Exception.create('Erro ao executar query. Erro: ' +
               E.Message);
           end;
@@ -671,7 +671,7 @@ begin
 
     if fautocomite then
     begin
-      Session := TConexoesLista.Acquire();
+      Session := TControleSession.Acquire();
       Session.StartTransaction;
     end;
 
